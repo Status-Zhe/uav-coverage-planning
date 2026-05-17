@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UAV 路径规划可视化 - PLY点云 + CSV航点</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: #0a0a0f;
+            color: #e0e0ff;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .ui-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 320px;
+            max-width: 380px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            z-index: 100;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .ui-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .ui-panel::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+        
+        .ui-panel::-webkit-scrollbar-thumb {
+            background: #00d4ff;
+            border-radius: 3px;
+        }
+        
+        .ui-panel h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+        }
+        
+        .ui-panel .data-source {
+            font-size: 11px;
+            color: #00ff88;
+            margin-bottom: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .ui-panel .subtitle {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        
+        .file-upload {
+            margin-bottom: 20px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .file-label {
+            display: block;
+            font-size: 12px;
+            color: #00d4ff;
+            margin-bottom: 8px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .file-input {
+            width: 100%;
+            padding: 8px;
+            background: rgba(30, 40, 60, 0.6);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 6px;
+            color: #e0e0ff;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        
+        .file-input::-webkit-file-upload-button {
+            background: #00d4ff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .file-info {
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 5px;
+            word-break: break-all;
+        }
+        
+        .stats {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            margin-top: 16px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+        }
+        
+        .stat-value {
+            color: #00ff88;
+        }
+        
+        .legend {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 12px;
+            z-index: 100;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        .legend-color.pointcloud { background: #4a90e2; }
+        .legend-color.path { background: #00d4ff; }
+        .legend-color.uav { background: #ff6b6b; }
+        .legend-color.keypoint { background: #ff0000; }
+        .legend-color.waypoint { background: #00ff88; }
+        
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 15, 30, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 212, 255, 0.2);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading-text {
+            margin-top: 16px;
+            color: #00d4ff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 50, 50, 0.2);
+            border: 1px solid rgba(255, 50, 50, 0.5);
+            border-radius: 8px;
+            padding: 20px 30px;
+            color: #ff6666;
+            font-family: 'JetBrains Mono', monospace;
+            display: none;
+            z-index: 1001;
+        }
+        
+        .control-group {
+            margin-top: 12px;
+        }
+        
+        .control-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            color: #000;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Noto Sans SC', sans-serif;
+            margin-top: 8px;
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+        }
+        
+        .control-btn:disabled {
+            background: #2a3a4a;
+            color: #5a6a7a;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .control-btn.reset-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #cc4444 100%);
+        }
+        
+        .speed-control {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .speed-control label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .speed-control input {
+            flex: 1;
+            background: rgba(30, 40, 60, 0.6);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 4px;
+            color: #00d4ff;
+            padding: 4px 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-text">加载中...</div>
+    </div>
+    
+    <div id="error" class="error-message"></div>
+    
+    <div id="canvas-container"></div>
+    
+    <div class="ui-panel">
+        <h1>UAV 路径规划可视化</h1>
+        <div class="data-source">● 支持 PLY 点云 + CSV 航点</div>
+        <div class="subtitle">加载真实点云数据和航点文件</div>
+        
+        <div class="file-upload">
+            <label class="file-label">📁 点云文件 (PLY)</label>
+            <input type="file" id="ply-file" accept=".ply" class="file-input">
+            <div class="file-info" id="ply-info">未加载点云</div>
+        </div>
+        
+        <div class="file-upload">
+            <label class="file-label">✈️ 航点文件 (CSV)</label>
+            <input type="file" id="csv-file" accept=".csv" class="file-input">
+            <div class="file-info" id="csv-info">未加载航点</div>
+        </div>
+        
+        <div class="control-group">
+            <button class="control-btn" id="reset-view-btn">重置相机视角</button>
+        </div>
+        
+        <div class="speed-control">
+            <label>播放速度:</label>
+            <input type="range" id="play-speed" min="0.5" max="3" step="0.1" value="1">
+            <span id="speed-value">1.0x</span>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-row">
+                <span class="stat-label">点云点数:</span>
+                <span class="stat-value" id="point-count">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">航点数量:</span>
+                <span class="stat-value" id="waypoint-count">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">关键点:</span>
+                <span class="stat-value" id="keypoint-count">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">总距离:</span>
+                <span class="stat-value" id="total-distance">-</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <button class="control-btn" id="play-btn" disabled>▶ 播放</button>
+            <button class="control-btn reset-btn" id="reset-animation-btn" disabled>重置动画</button>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color pointcloud"></div>
+            <span>点云数据</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color path"></div>
+            <span>飞行路径</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color uav"></div>
+            <span>UAV位置</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color keypoint"></div>
+            <span>关键点</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color waypoint"></div>
+            <span>普通航点</span>
+        </div>
+    </div>
+    
+    <div id="waypoint-legend" style="position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,0.8);padding:10px;border-radius:5px;z-index:100;">
+        <div style="color:#fff;">● 主航线 (coverage)</div>
+        <div style="color:#f0f;">● RRT*过渡 (transition)</div>
+        <div style="color:#fa0;">● 截断段 (truncate)</div>
+    </div>
+    
+    <div class="progress-bar">
+        <div class="progress-fill" id="progress"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // ============================================
+        // 全局变量
+        // ============================================
+        let scene, camera, renderer, controls;
+        let pointCloudMesh = null;
+        let pathLine = null;
+        let uavMesh = null;
+        let waypointSpheres = [];
+        
+        let cameraDirectionArrows = [];
+        let waypoints = [];
+        let keypointIndices = new Set();
+        let isPlaying = false;
+        let currentWaypointIndex = 0;
+        let animationFrameId = null;
+        let playSpeed = 1.0;
+        
+        // ============================================
+        // Waypoint Type Color Mapping
+        // ============================================
+        const waypointColors = {
+            'coverage': 0xffffff,     // White - main routes
+            'transition': 0xff00ff,   // Magenta - RRT* transitions
+            'truncate': 0xffaa00      // Orange - truncated straight segments
+        };
+        
+        const waypointTypeLabels = {
+            'coverage': '主航线',
+            'transition': 'RRT*过渡',
+            'truncate': '截断段'
+        };
+        
+        // ============================================
+        // 初始化 Three.js 场景
+        // ============================================
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0f);
+            // scene.fog = new THREE.FogExp2(0x0a0a0f, 0.003);
+            
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera.position.set(0, 0, 50);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.autoRotate = false;
+            controls.enableZoom = true;
+            controls.zoomSpeed = 1.2;
+            controls.target.set(0, 0, 0);
+            
+            // 灯光系统
+            const ambientLight = new THREE.AmbientLight(0x404060);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 2, 1);
+            scene.add(directionalLight);
+            
+            const backLight = new THREE.DirectionalLight(0x88aaff, 0.3);
+            backLight.position.set(-1, 1, -1);
+            scene.add(backLight);
+            
+            // 辅助元素
+            const gridHelper = new THREE.GridHelper(100, 40, 0x1a1a2e, 0x0f0f1a);
+            scene.add(gridHelper);
+            
+            const axesHelper = new THREE.AxesHelper(15);
+            axesHelper.material.transparent = true;
+            axesHelper.material.opacity = 0.2;
+            scene.add(axesHelper);
+        }
+        
+        // ============================================
+        // 自定义 PLY 解析器 (避免使用 PLYLoader)
+        // ============================================
+        function parsePLY(data) {
+            const text = new TextDecoder('utf-8').decode(data);
+            const lines = text.split('\n');
+            
+            let vertexCount = 0;
+            let headerEnd = 0;
+            let isBinary = false;
+            let properties = [];
+            
+            // 解析头部
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line === 'end_header') {
+                    headerEnd = i + 1;
+                    break;
+                }
+                if (line.startsWith('element vertex')) {
+                    vertexCount = parseInt(line.split(' ')[2]);
+                }
+                if (line.startsWith('property')) {
+                    const parts = line.split(' ');
+                    properties.push({
+                        type: parts[1],
+                        name: parts[2]
+                    });
+                }
+                if (line === 'format binary_little_endian 1.0') {
+                    isBinary = true;
+                }
+            }
+            
+            // 简化：只处理 ASCII PLY
+            if (isBinary) {
+                throw new Error('二进制 PLY 文件需要更复杂的解析，请使用 ASCII 格式的 PLY 文件');
+            }
+            
+            // 解析顶点数据
+            const positions = [];
+            const colors = [];
+            
+            for (let i = headerEnd; i < headerEnd + vertexCount && i < lines.length; i++) {
+                const values = lines[i].trim().split(/\s+/);
+                if (values.length >= 3) {
+                    const x = parseFloat(values[0]);
+                    const y = parseFloat(values[1]);
+                    const z = parseFloat(values[2]);
+                    positions.push(x, z, -y);
+                    
+                    // 根据高度着色
+                    if (values.length >= 6) {
+                        // 如果有RGB值
+                        const r = parseFloat(values[3]) / 255;
+                        const g = parseFloat(values[4]) / 255;
+                        const b = parseFloat(values[5]) / 255;
+                        colors.push(r, g, b);
+                    } else {
+                        // 否则使用高度着色
+                        const r = 0.5 + (z + 20) / 60 * 0.5;
+                        const g = 0.3 + (z + 20) / 60 * 0.4;
+                        const b = 0.6 + (z + 20) / 60 * 0.3;
+                        colors.push(r, g, b);
+                    }
+                }
+            }
+            
+            return { positions, colors, vertexCount };
+        }
+        
+        // ============================================
+        // 加载 PLY 点云
+        // ============================================
+        function loadPLYFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                showLoading(true, "解析点云数据...");
+                try {
+                    const arrayBuffer = e.target.result;
+                    const data = new Uint8Array(arrayBuffer);
+                    
+                    // 检查是否是 ASCII 格式
+                    const header = new TextDecoder('utf-8').decode(data.slice(0, 2000));
+                    if (header.includes('format binary')) {
+                        showError('当前仅支持 ASCII 格式的 PLY 文件。请使用以下命令转换：\nply2txt your_file.ply');
+                        showLoading(false);
+                        return;
+                    }
+                    
+                    const { positions, colors, vertexCount } = parsePLY(arrayBuffer);
+                    
+                    if (vertexCount === 0) {
+                        throw new Error("未找到有效的点云数据");
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+                    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+                    
+                    // 计算点云范围
+                    let minX = Infinity, maxX = -Infinity;
+                    let minY = Infinity, maxY = -Infinity;
+                    let minZ = Infinity, maxZ = -Infinity;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        minX = Math.min(minX, positions[i]);
+                        maxX = Math.max(maxX, positions[i]);
+                        minY = Math.min(minY, positions[i+1]);
+                        maxY = Math.max(maxY, positions[i+1]);
+                        minZ = Math.min(minZ, positions[i+2]);
+                        maxZ = Math.max(maxZ, positions[i+2]);
+                    }
+                    
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+                    const centerZ = (minZ + maxZ) / 2;
+                    
+                    const material = new THREE.PointsMaterial({
+                        size: 0.5,
+                        vertexColors: true,
+                        sizeAttenuation: true
+                    });
+                    
+                    const newPointCloud = new THREE.Points(geometry, material);
+                    
+                    if (pointCloudMesh) {
+                        scene.remove(pointCloudMesh);
+                    }
+                    
+                    pointCloudMesh = newPointCloud;
+                    scene.add(pointCloudMesh);
+                    
+                    // 更新统计
+                    document.getElementById('point-count').textContent = vertexCount.toLocaleString();
+                    document.getElementById('ply-info').innerHTML = `✅ 已加载: ${vertexCount.toLocaleString()} 个点<br>范围: X[${minX.toFixed(1)},${maxX.toFixed(1)}] Y[${minY.toFixed(1)},${maxY.toFixed(1)}] Z[${minZ.toFixed(1)},${maxZ.toFixed(1)}]`;
+                    
+                    // 调整相机目标
+                    controls.target.set(centerX, centerY, centerZ);
+                    controls.update();
+                    
+                    showLoading(false);
+                } catch (error) {
+                    console.error('PLY 解析错误:', error);
+                    showError(`PLY 解析失败: ${error.message}`);
+                    showLoading(false);
+                }
+            };
+            
+            reader.onerror = function() {
+                showError("PLY 文件读取失败");
+                showLoading(false);
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // ============================================
+        // 加载 CSV 航点数据
+        // ============================================
+        function loadCSVFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                if (pathLine) {
+                    scene.remove(pathLine);
+                    if (pathLine.geometry) pathLine.geometry.dispose();
+                    if (pathLine.material) pathLine.material.dispose();
+                    pathLine = null;
+                }
+                
+                // 2. 清除所有航点球体
+                waypointSpheres.forEach(sphere => {
+                    scene.remove(sphere);
+                    if (sphere.geometry) sphere.geometry.dispose();
+                    if (sphere.material) sphere.material.dispose();
+                });
+                waypointSpheres = [];
+                
+                // 3. 重置动画状态
+                if (uavMesh) {
+                    scene.remove(uavMesh);
+                    uavMesh = null;
+                }
+                isPlaying = false;
+                currentWaypointIndex = 0;
+                document.getElementById('play-btn').textContent = '▶ 播放';
+                document.getElementById('play-btn').disabled = false;
+                document.getElementById('reset-animation-btn').disabled = false;
+                document.getElementById('progress').style.width = '0%';
+                showLoading(true, "解析航点数据...");
+                const content = e.target.result;
+                const lines = content.trim().split('\n');
+                
+                // 解析 CSV (无 header)
+                const newWaypoints = [];
+                const newKeypointIndices = new Set();
+                const waypointYaws = [];   // 偏航角
+                const waypointPitches = []; // 俯仰角
+
+                for (let i = 0; i < lines.length; i++) {
+                    const values = lines[i].split(',');
+                    if (values.length >= 9) {
+                        const x = parseFloat(values[0]);
+                        const y = parseFloat(values[1]);
+                        const z = parseFloat(values[2]);
+                        const yaw = parseFloat(values[3]-90);   // 偏航角
+                        const pitch = parseFloat(values[4]); // 俯仰角
+                        const isKeypoint = values[8].toLowerCase() === 'true';
+                        // Parse waypoint_type if available (column 9, 0-indexed)
+                        const waypointType = values.length >= 10 ? values[9].trim() : null;
+                        
+                        const waypoint = new THREE.Vector3(x, z, -y);
+                        // Store waypoint_type as a property on the vector
+                        if (waypointType && waypointType !== '') {
+                            waypoint.waypoint_type = waypointType;
+                        }
+                        
+                        newWaypoints.push(waypoint);
+                        waypointYaws.push(yaw);
+                        waypointPitches.push(pitch);
+                        
+                        if (isKeypoint) {
+                            newKeypointIndices.add(i);
+                        }
+                    }
+                }
+                                
+                if (newWaypoints.length === 0) {
+                    throw new Error("CSV 文件中没有有效航点");
+                }
+                
+                waypoints = newWaypoints;
+                keypointIndices = newKeypointIndices;
+                
+                // 更新统计
+                document.getElementById('waypoint-count').textContent = waypoints.length;
+                document.getElementById('keypoint-count').textContent = keypointIndices.size;
+                
+                // 计算总距离
+                let totalDist = 0;
+                for (let i = 1; i < waypoints.length; i++) {
+                    totalDist += waypoints[i].distanceTo(waypoints[i-1]);
+                }
+                document.getElementById('total-distance').textContent = totalDist.toFixed(2) + ' m';
+                document.getElementById('csv-info').innerHTML = `✅ 已加载: ${waypoints.length} 个航点 (${keypointIndices.size} 个关键点)`;
+                
+                // 清除旧的路径和航点球体
+                if (pathLine) scene.remove(pathLine);
+                waypointSpheres.forEach(sphere => scene.remove(sphere));
+                waypointSpheres = [];
+                
+                // 创建路径线条（直线折线）
+                const points = waypoints.map(p => p.clone());
+                const lineGeometry = new THREE.BufferGeometry();
+                const vertices = [];
+                points.forEach(point => {
+                    vertices.push(point.x, point.y, point.z);
+                });
+                lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3));
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00d4ff, linewidth: 2 });
+                pathLine = new THREE.Line(lineGeometry, lineMaterial);
+                scene.add(pathLine);
+                
+                // 创建航点球体
+                waypoints.forEach((wp, idx) => {
+                    const isKeypoint = keypointIndices.has(idx);
+                    // Get color based on waypoint_type if available, otherwise use keypoint/default colors
+                    const waypointType = wp.waypoint_type || (isKeypoint ? 'keypoint' : 'normal');
+                    const color = waypointColors[waypointType] || (isKeypoint ? 0xff3333 : 0x00ff88);
+                    const radius = isKeypoint ? 0.5 : 0.35;
+                    
+                    const sphereGeo = new THREE.SphereGeometry(radius, 16, 16);
+                    const sphereMat = new THREE.MeshStandardMaterial({ 
+                        color: color, 
+                        emissive: color,
+                        emissiveIntensity: isKeypoint ? 0.5 : 0.3,
+                        roughness: 0.3,
+                        metalness: 0.1
+                    });
+                    const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+                    sphere.position.copy(wp);
+                    scene.add(sphere);
+                    waypointSpheres.push(sphere);
+                });
+                
+                cameraDirectionArrows.forEach(item => {
+                    if (Array.isArray(item)) {
+                        item.forEach(subItem => {
+                            if (subItem.parent) scene.remove(subItem);
+                            if (subItem.geometry) subItem.geometry.dispose();
+                        });
+                    } else {
+                        if (item.parent) scene.remove(item);
+                        if (item.geometry) item.geometry.dispose();
+                    }
+                });
+                cameraDirectionArrows = [];
+
+                // 创建相机朝向可视化
+                waypoints.forEach((wp, idx) => {
+                    const isKeypoint = keypointIndices.has(idx);
+                    const arrowColor = isKeypoint ? 0xff6666 : 0x00ff88;
+                    const yaw = waypointYaws[idx];
+                    const pitch = waypointPitches[idx];
+                    
+                    // 可选：同时显示视野扇形（更直观）
+                    const frustum = createCameraFrustum(wp, yaw, pitch, 60, 2.5, arrowColor);
+                    frustum.forEach(line => scene.add(line));
+                    cameraDirectionArrows.push(frustum);
+                });
+
+                // 启用播放和重置按钮
+                document.getElementById('play-btn').disabled = false;
+                document.getElementById('reset-animation-btn').disabled = false;
+                document.getElementById('play-btn').textContent = '▶ 播放';
+                isPlaying = false;
+                currentWaypointIndex = 0;
+                document.getElementById('progress').style.width = '0%';
+                
+                showLoading(false);
+            };
+            
+            reader.onerror = function() {
+                showError("CSV 文件读取失败");
+                showLoading(false);
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+        }
+        
+        // ============================================
+        // 创建 UAV 模型
+        // ============================================
+        function createUAVModel() {
+            const group = new THREE.Group();
+            
+            // 机身
+            const bodyGeo = new THREE.BoxGeometry(0.8, 0.3, 0.8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x441111 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            group.add(body);
+            
+            // 旋翼臂
+            const armGeo = new THREE.BoxGeometry(0.1, 0.05, 0.6);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+            
+            const arm1 = new THREE.Mesh(armGeo, armMat);
+            arm1.position.set(0.5, 0, 0);
+            arm1.rotation.z = Math.PI / 2;
+            group.add(arm1);
+            
+            const arm2 = new THREE.Mesh(armGeo, armMat);
+            arm2.position.set(-0.5, 0, 0);
+            arm2.rotation.z = Math.PI / 2;
+            group.add(arm2);
+            
+            const arm3 = new THREE.Mesh(armGeo, armMat);
+            arm3.position.set(0, 0, 0.5);
+            group.add(arm3);
+            
+            const arm4 = new THREE.Mesh(armGeo, armMat);
+            arm4.position.set(0, 0, -0.5);
+            group.add(arm4);
+            
+            // 旋翼
+            const rotorGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.05, 6);
+            const rotorMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            
+            const rotorPositions = [[0.5, 0.1, 0.5], [-0.5, 0.1, 0.5], [0.5, 0.1, -0.5], [-0.5, 0.1, -0.5]];
+            rotorPositions.forEach(pos => {
+                const rotor = new THREE.Mesh(rotorGeo, rotorMat);
+                rotor.position.set(pos[0], pos[1], pos[2]);
+                group.add(rotor);
+            });
+            
+            // 相机
+            const cameraGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const cameraMat = new THREE.MeshStandardMaterial({ color: 0x00d4ff, emissive: 0x004466 });
+            const cameraSphere = new THREE.Mesh(cameraGeo, cameraMat);
+            cameraSphere.position.set(0, -0.2, 0.3);
+            group.add(cameraSphere);
+            
+            return group;
+        }
+        
+
+        // 更直观的可视化：使用圆锥体 + 线条
+        function createCameraCone(position, yawDeg, pitchDeg, color = 0x00ff88, length = 1.5) {
+            const yawRad = (yawDeg * Math.PI) / 180;
+            const pitchRad = (pitchDeg * Math.PI) / 180;
+            
+            // 计算方向：偏航决定水平指向，俯仰决定上下倾斜
+            const direction = new THREE.Vector3(
+                Math.cos(yawRad) * Math.cos(pitchRad),  // X 分量
+                Math.sin(pitchRad),                      // Y 分量（俯仰）
+                Math.sin(yawRad) * Math.cos(pitchRad)   // Z 分量
+            );
+            direction.normalize();
+            
+            // 创建圆锥体
+            const coneGeometry = new THREE.ConeGeometry(0.25, length, 16);
+            const coneMaterial = new THREE.MeshStandardMaterial({ 
+                color: color, 
+                emissive: color, 
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.8
+            });
+            const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+            
+            // 将圆锥定位在航点位置
+            cone.position.copy(position);
+            
+            // 圆锥默认指向 +Y 方向，需要旋转到目标方向
+            // 计算从 (0,0,-1) 到 direction 的旋转四元数
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 0, -1),
+                direction
+            );
+            cone.quaternion.copy(quaternion);
+            
+            return cone;
+        }
+
+        // 可视化相机视野（扇形）
+        function createCameraFrustum(position, yawDeg, pitchDeg, fov = 60, range = 3.0, color = 0x00ff88) {
+            const yawRad = (yawDeg * Math.PI) / 180;
+            const pitchRad = (pitchDeg * Math.PI) / 180;
+            const halfFovRad = (fov / 2) * Math.PI / 180;
+            
+            // 计算主方向
+            const mainDir = new THREE.Vector3(
+                Math.cos(yawRad) * Math.cos(pitchRad),
+                Math.sin(pitchRad),
+                Math.sin(yawRad) * Math.cos(pitchRad)
+            ).normalize();
+            
+            const rightDir = new THREE.Vector3(-Math.sin(yawRad), 0, Math.cos(yawRad));
+            const upDir = new THREE.Vector3(
+                -Math.cos(yawRad) * Math.sin(pitchRad),
+                Math.cos(pitchRad),
+                -Math.sin(yawRad) * Math.sin(pitchRad)
+            ).normalize();
+            
+            // 生成四个角：按 左下、右下、右上、左上 的顺序（或任何一致顺序）
+            const corners = [];
+            const hAngles = [-halfFovRad, halfFovRad]; // 左、右
+            const vAngles = [-halfFovRad, halfFovRad]; // 下、上
+            
+            // 明确顺序：左下、右下、右上、左上（逆时针环绕）
+            const cornerIndices = [
+                [0, 0], // 左、下
+                [1, 0], // 右、下  
+                [1, 1], // 右、上
+                [0, 1]  // 左、上
+            ];
+            
+            cornerIndices.forEach(([hIdx, vIdx]) => {
+                const hAngle = hAngles[hIdx];
+                const vAngle = vAngles[vIdx];
+                
+                const horizontalOffset = rightDir.clone().multiplyScalar(Math.tan(hAngle));
+                const verticalOffset = upDir.clone().multiplyScalar(Math.tan(vAngle));
+                
+                const finalDir = mainDir.clone()
+                    .add(horizontalOffset)
+                    .add(verticalOffset)
+                    .normalize();
+                    
+                corners.push(position.clone().add(finalDir.multiplyScalar(range)));
+            });
+            
+            const lines = [];
+            
+            // 从中心到四个角的射线
+            corners.forEach(corner => {
+                const geometry = new THREE.BufferGeometry().setFromPoints([position, corner]);
+                const material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.5 });
+                lines.push(new THREE.Line(geometry, material));
+            });
+            
+            // 连接四个角形成矩形（按生成顺序连接 0-1-2-3-0）
+            for (let i = 0; i < 4; i++) {
+                const start = corners[i];
+                const end = corners[(i + 1) % 4];
+                const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+                const material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.3 });
+                lines.push(new THREE.Line(geometry, material));
+            }
+            
+            return lines;
+        }   
+
+        // ============================================
+        // 动画控制
+        // ============================================
+        function startAnimation() {
+            if (waypoints.length === 0) return;
+            
+            if (isPlaying) {
+                // 暂停
+                isPlaying = false;
+                document.getElementById('play-btn').textContent = '▶ 播放';
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+            } else {
+                // 播放
+                if (currentWaypointIndex >= waypoints.length - 1) {
+                    currentWaypointIndex = 0;
+                    if (uavMesh) {
+                        uavMesh.position.copy(waypoints[0]);
+                    }
+                }
+                
+                isPlaying = true;
+                document.getElementById('play-btn').textContent = '⏸ 暂停';
+                
+                if (!uavMesh) {
+                    uavMesh = createUAVModel();
+                    scene.add(uavMesh);
+                    uavMesh.position.copy(waypoints[0]);
+                }
+                
+                animateMovement();
+            }
+        }
+        
+        function animateMovement() {
+            if (!isPlaying || waypoints.length === 0 || currentWaypointIndex >= waypoints.length - 1) {
+                if (currentWaypointIndex >= waypoints.length - 1 && isPlaying) {
+                    // 动画完成
+                    isPlaying = false;
+                    document.getElementById('play-btn').textContent = '▶ 播放';
+                    document.getElementById('progress').style.width = '100%';
+                }
+                return;
+            }
+            
+            const current = waypoints[currentWaypointIndex];
+            const next = waypoints[currentWaypointIndex + 1];
+            const speed = 0.3 * playSpeed;
+            
+            if (!uavMesh) {
+                uavMesh = createUAVModel();
+                scene.add(uavMesh);
+                uavMesh.position.copy(current);
+            }
+            
+            const direction = new THREE.Vector3().subVectors(next, uavMesh.position);
+            const distance = direction.length();
+            
+            if (distance < speed) {
+                currentWaypointIndex++;
+                updateProgress();
+                animationFrameId = requestAnimationFrame(() => animateMovement());
+            } else {
+                direction.normalize().multiplyScalar(speed);
+                uavMesh.position.add(direction);
+                
+                // 让 UAV 面向移动方向
+                if (direction.length() > 0.01) {
+                    const angle = Math.atan2(direction.x, direction.z);
+                    uavMesh.rotation.y = angle;
+                }
+                
+                animationFrameId = requestAnimationFrame(() => animateMovement());
+            }
+        }
+        
+        function resetAnimation() {
+            isPlaying = false;
+            document.getElementById('play-btn').textContent = '▶ 播放';
+            currentWaypointIndex = 0;
+            updateProgress();
+            
+            if (uavMesh) {
+                scene.remove(uavMesh);
+                uavMesh = null;
+            }
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        }
+        
+        function updateProgress() {
+            if (waypoints.length > 1) {
+                const progress = (currentWaypointIndex / (waypoints.length - 1)) * 100;
+                document.getElementById('progress').style.width = progress + '%';
+            }
+        }
+        
+        // ============================================
+        // UI 辅助函数
+        // ============================================
+        function showLoading(show, text = "加载中...") {
+            const overlay = document.getElementById('loading');
+            const textEl = document.getElementById('loading-text');
+            if (show) {
+                textEl.textContent = text;
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.innerHTML = message.replace(/\n/g, '<br>');
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        function resetCameraView() {
+            if (pointCloudMesh) {
+                const geometry = pointCloudMesh.geometry;
+                if (geometry && geometry.attributes.position) {
+                    const positions = geometry.attributes.position.array;
+                    let minX = Infinity, maxX = -Infinity;
+                    let minY = Infinity, maxY = -Infinity;
+                    let minZ = Infinity, maxZ = -Infinity;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        minX = Math.min(minX, positions[i]);
+                        maxX = Math.max(maxX, positions[i]);
+                        minY = Math.min(minY, positions[i+1]);
+                        maxY = Math.max(maxY, positions[i+1]);
+                        minZ = Math.min(minZ, positions[i+2]);
+                        maxZ = Math.max(maxZ, positions[i+2]);
+                    }
+                    
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+                    const centerZ = (minZ + maxZ) / 2;
+                    const maxDim = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+                    
+                    controls.target.set(centerX, centerY, centerZ);
+                    const heightRange = maxZ - minZ;  // 高度范围
+                    const horizontalRange = Math.max(maxX - minX, maxY - minY);  // 水平范围
+                    const viewDistance = Math.max(horizontalRange * 0.8, heightRange * 1.5, 30);  // 自适应视距
+                    camera.position.set(centerX + viewDistance * 0.6, centerY + heightRange * 0.5 + minZ, centerZ + viewDistance);
+                    controls.update();
+                }
+            } else {
+                controls.target.set(0, 0, 0);
+                camera.position.set(0, 0, 50);
+                controls.update();
+            }
+        }
+        
+        // ============================================
+        // 事件绑定
+        // ============================================
+        function bindEvents() {
+            document.getElementById('ply-file').addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    loadPLYFile(e.target.files[0]);
+                }
+            });
+            
+            document.getElementById('csv-file').addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    loadCSVFile(e.target.files[0]);
+                }
+            });
+            
+            document.getElementById('play-btn').addEventListener('click', startAnimation);
+            document.getElementById('reset-animation-btn').addEventListener('click', resetAnimation);
+            document.getElementById('reset-view-btn').addEventListener('click', resetCameraView);
+            
+            const speedSlider = document.getElementById('play-speed');
+            const speedValue = document.getElementById('speed-value');
+            speedSlider.addEventListener('input', (e) => {
+                playSpeed = parseFloat(e.target.value);
+                speedValue.textContent = playSpeed.toFixed(1) + 'x';
+            });
+        }
+        
+        // ============================================
+        // 渲染循环
+        // ============================================
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // ============================================
+        // 窗口调整
+        // ============================================
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // ============================================
+        // 初始化
+        // ============================================
+        function init() {
+            initThreeJS();
+            bindEvents();
+            animate();
+            showLoading(false);
+        }
+        
+        init();
+    </script>
+</body>
+</html>

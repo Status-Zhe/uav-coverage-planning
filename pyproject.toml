@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uav-coverage-planners"
+version = "0.1.0"
+description = "UAV coverage path planning library"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.20.0",
+    "numba>=0.57.0",
+    "scipy>=1.7.0",
+    "open3d>=0.16.0",
+    "scikit-learn>=1.0.0",
+    "ortools>=9.0.0",
+    "shapely>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+]
+
+[project.scripts]
+uav-planners = "uav_planners.cli.tiles:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
