@@ -21,6 +21,7 @@ pip install -e .
 - `oblique.py`  —— 主要示例（点云输入、AABB、3d-tiles 支持）
 - `boustrophedon.py` —— 区域（region-only）示例（无点云，按矩形区域生成）
 - `spiral.py` —— 螺旋算法示例
+- `spiral_nopc.py` —— 螺旋算法示例（无点云，圆心+半径+高度）
 - `oblique_oneplane.py` —— 单斜面多边形示例（无点云）
 - `viewpoint_optimized.py` —— 改进的视点（box-wrap / TSP）示例
 
@@ -29,6 +30,7 @@ pip install -e .
 python oblique.py
 python boustrophedon.py
 python spiral.py
+python spiral_nopc.py
 python oblique_oneplane.py
 python viewpoint_optimized.py
 ```
