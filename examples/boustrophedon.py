@@ -1,5 +1,5 @@
-from src.uav_planners import CoveragePlanner, MissionConfig
-from src.uav_planners.models import Camera
+from uav_planners import CoveragePlanner, MissionConfig
+from uav_planners.models import Camera
 import time
 
 start = time.time()
