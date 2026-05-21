@@ -53,6 +53,9 @@ class DataLoader:
         if bool(getattr(self.config, "spiral_circle_only_enabled", False)):
             return self._load_spiral_circle_only()
 
+        if bool(getattr(self.config, "cylinder_params_enabled", False)):
+            return self._load_cylinder_params()
+
         if bool(getattr(self.config, "oblique_oneplane_enabled", False)):
             return self._load_oblique_oneplane()
 
@@ -128,6 +131,41 @@ class DataLoader:
         synthetic_cloud = PointCloud(points=synthetic_points)
         logger.info(
             "Spiral circle-only mode: synthetic pointcloud with %d points",
+            synthetic_cloud.point_count,
+        )
+        return synthetic_cloud, synthetic_cloud
+
+    def _load_cylinder_params(self) -> Tuple[PointCloud, PointCloud]:
+        """Create a synthetic point cloud for cylinder parameter planning."""
+        center_xy = getattr(self.config, "cylinder_center_xy", None)
+        radius = getattr(self.config, "cylinder_radius", None)
+        start_z = getattr(self.config, "cylinder_start_z", None)
+        height = getattr(self.config, "cylinder_height", None)
+
+        if center_xy is None or radius is None or start_z is None or height is None:
+            raise ValueError("cylinder_center_xy, cylinder_radius, cylinder_start_z, cylinder_height are required")
+
+        cx, cy = [float(v) for v in center_xy]
+        safe_margin = float(getattr(self.config, "safety_distance", 3.0))
+        global_distance = float(getattr(self.config, "global_distance_m", 0.0) or 0.0)
+        offset = max(1000.0, float(radius) + global_distance + safe_margin + 10.0)
+
+        far_x = cx + offset
+        far_y = cy
+        z0 = float(start_z)
+        z1 = float(start_z) + float(height)
+
+        synthetic_points = np.array(
+            [
+                [far_x, far_y, z0],
+                [far_x, far_y, z1],
+            ],
+            dtype=float,
+        )
+
+        synthetic_cloud = PointCloud(points=synthetic_points)
+        logger.info(
+            "Cylinder params mode: synthetic pointcloud with %d points",
             synthetic_cloud.point_count,
         )
         return synthetic_cloud, synthetic_cloud

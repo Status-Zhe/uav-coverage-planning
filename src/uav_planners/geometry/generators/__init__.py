@@ -2,6 +2,7 @@
 
 from .boustrophedon import BoustrophedonGenerator
 from .spiral import SpiralGenerator
+from .cylinder import CylinderGenerator
 from .oblique import ObliqueGenerator
 from .oblique_oneplane import ObliqueOnePlaneGenerator
 from .viewpoint_optimized import ViewpointGeneratorOptimized
@@ -11,6 +12,7 @@ from .transition_theta_star_generator import TransitionThetaStarGenerator
 __all__ = [
     "BoustrophedonGenerator",
     "SpiralGenerator",
+    "CylinderGenerator",
     "ObliqueGenerator",
     "ObliqueOnePlaneGenerator",
     "ViewpointGeneratorOptimized",

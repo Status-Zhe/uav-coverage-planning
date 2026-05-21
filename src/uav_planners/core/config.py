@@ -234,6 +234,44 @@ class SpiralConfig:
 
 
 @dataclass
+class CylinderConfig:
+    """Cylinder path parameters.
+
+    When provided, the cylinder generator uses these values instead of
+    fitting a cylinder from a point cloud.
+    """
+    cylinder_center_xy: Optional[Tuple[float, float]] = None
+    """Cylinder center in XY plane."""
+
+    cylinder_radius: Optional[float] = None
+    """Cylinder radius in meters."""
+
+    cylinder_start_z: Optional[float] = None
+    """Cylinder start elevation (Z)."""
+
+    cylinder_height: Optional[float] = None
+    """Cylinder height in meters."""
+
+    cylinder_mode: str = "horizontal"
+    """Path mode: horizontal (rings) or vertical (boustrophedon)."""
+
+    cylinder_ring_spacing_m: Optional[float] = None
+    """Optional ring spacing in meters (horizontal mode)."""
+
+    cylinder_ring_count: Optional[int] = None
+    """Optional ring count (horizontal mode)."""
+
+    cylinder_strip_spacing_m: Optional[float] = None
+    """Optional arc-length spacing between strips in meters (vertical mode)."""
+
+    cylinder_strip_count: Optional[int] = None
+    """Optional strip count (vertical mode)."""
+
+    cylinder_angle_start_deg: float = 0.0
+    """Start angle for rings/strips in degrees."""
+
+
+@dataclass
 class OnePlaneConfig:
     """Oblique one-plane input parameters.
 
@@ -292,6 +330,7 @@ class GeneratorConfig:
     transition: TransitionConfig = field(default_factory=TransitionConfig)
     region: RegionConfig = field(default_factory=RegionConfig)
     spiral: SpiralConfig = field(default_factory=SpiralConfig)
+    cylinder: CylinderConfig = field(default_factory=CylinderConfig)
     oneplane: OnePlaneConfig = field(default_factory=OnePlaneConfig)
     
     # Legacy attributes for backward compatibility
@@ -314,6 +353,9 @@ class GeneratorConfig:
         'region_only_enabled', 'coverage_area_rect_xy', 'region_ground_z',
         'global_distance_m',
         'spiral_center_xy', 'spiral_radius', 'spiral_start_z', 'spiral_height',
+        'cylinder_center_xy', 'cylinder_radius', 'cylinder_start_z', 'cylinder_height',
+        'cylinder_mode', 'cylinder_ring_spacing_m', 'cylinder_ring_count',
+        'cylinder_strip_spacing_m', 'cylinder_strip_count', 'cylinder_angle_start_deg',
         'oneplane_polygon_xyz', 'oneplane_plane_tolerance',
         'oneplane_face_normal_sign', 'oneplane_heading_yaw_offset_deg',
     ], repr=False)
@@ -327,6 +369,7 @@ class GeneratorConfig:
         transition: Any = None,
         region: Any = None,
         spiral: Any = None,
+        cylinder: Any = None,
         oneplane: Any = None,
         **kwargs,
     ):
@@ -380,6 +423,13 @@ class GeneratorConfig:
         else:
             self.spiral = spiral
 
+        if cylinder is None:
+            self.cylinder = CylinderConfig()
+        elif isinstance(cylinder, dict):
+            self.cylinder = CylinderConfig(**cylinder)
+        else:
+            self.cylinder = cylinder
+
         if oneplane is None:
             self.oneplane = OnePlaneConfig()
         elif isinstance(oneplane, dict):
@@ -417,6 +467,11 @@ class GeneratorConfig:
         }
         region_attrs = {'region_only_enabled', 'coverage_area_rect_xy', 'region_ground_z', 'global_distance_m'}
         spiral_attrs = {'spiral_center_xy', 'spiral_radius', 'spiral_start_z', 'spiral_height'}
+        cylinder_attrs = {
+            'cylinder_center_xy', 'cylinder_radius', 'cylinder_start_z', 'cylinder_height',
+            'cylinder_mode', 'cylinder_ring_spacing_m', 'cylinder_ring_count',
+            'cylinder_strip_spacing_m', 'cylinder_strip_count', 'cylinder_angle_start_deg',
+        }
         oneplane_attrs = {
             'oneplane_polygon_xyz', 'oneplane_plane_tolerance',
             'oneplane_face_normal_sign', 'oneplane_heading_yaw_offset_deg',
@@ -429,6 +484,7 @@ class GeneratorConfig:
             *transition_attrs,
             *region_attrs,
             *spiral_attrs,
+            *cylinder_attrs,
             *oneplane_attrs,
         }
     
@@ -459,6 +515,11 @@ class GeneratorConfig:
         }
         region_attrs = {'region_only_enabled', 'coverage_area_rect_xy', 'region_ground_z', 'global_distance_m'}
         spiral_attrs = {'spiral_center_xy', 'spiral_radius', 'spiral_start_z', 'spiral_height'}
+        cylinder_attrs = {
+            'cylinder_center_xy', 'cylinder_radius', 'cylinder_start_z', 'cylinder_height',
+            'cylinder_mode', 'cylinder_ring_spacing_m', 'cylinder_ring_count',
+            'cylinder_strip_spacing_m', 'cylinder_strip_count', 'cylinder_angle_start_deg',
+        }
         oneplane_attrs = {
             'oneplane_polygon_xyz', 'oneplane_plane_tolerance',
             'oneplane_face_normal_sign', 'oneplane_heading_yaw_offset_deg',
@@ -476,6 +537,8 @@ class GeneratorConfig:
             return getattr(self.region, name)
         elif name in spiral_attrs:
             return getattr(self.spiral, name)
+        elif name in cylinder_attrs:
+            return getattr(self.cylinder, name)
         elif name in oneplane_attrs:
             return getattr(self.oneplane, name)
         
@@ -508,6 +571,11 @@ class GeneratorConfig:
         }
         region_attrs = {'region_only_enabled', 'coverage_area_rect_xy', 'region_ground_z', 'global_distance_m'}
         spiral_attrs = {'spiral_center_xy', 'spiral_radius', 'spiral_start_z', 'spiral_height'}
+        cylinder_attrs = {
+            'cylinder_center_xy', 'cylinder_radius', 'cylinder_start_z', 'cylinder_height',
+            'cylinder_mode', 'cylinder_ring_spacing_m', 'cylinder_ring_count',
+            'cylinder_strip_spacing_m', 'cylinder_strip_count', 'cylinder_angle_start_deg',
+        }
         oneplane_attrs = {
             'oneplane_polygon_xyz', 'oneplane_plane_tolerance',
             'oneplane_face_normal_sign', 'oneplane_heading_yaw_offset_deg',
@@ -525,6 +593,8 @@ class GeneratorConfig:
             object.__setattr__(self.region, name, value)
         elif name in spiral_attrs:
             object.__setattr__(self.spiral, name, value)
+        elif name in cylinder_attrs:
+            object.__setattr__(self.cylinder, name, value)
         elif name in oneplane_attrs:
             object.__setattr__(self.oneplane, name, value)
         else:

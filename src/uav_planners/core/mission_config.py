@@ -70,6 +70,19 @@ class MissionConfig:
     spiral_height: Optional[float] = None
     spiral_circle_only_enabled: bool = False
 
+    # Cylinder parameters (no pointcloud required)
+    cylinder_center_xy: Optional[Tuple[float, float]] = None
+    cylinder_radius: Optional[float] = None
+    cylinder_start_z: Optional[float] = None
+    cylinder_height: Optional[float] = None
+    cylinder_mode: str = "horizontal"  # horizontal | vertical
+    cylinder_ring_spacing_m: Optional[float] = None
+    cylinder_ring_count: Optional[int] = None
+    cylinder_strip_spacing_m: Optional[float] = None
+    cylinder_strip_count: Optional[int] = None
+    cylinder_angle_start_deg: float = 0.0
+    cylinder_params_enabled: bool = False
+
     # Oblique one-plane parameters (no pointcloud required)
     oneplane_polygon_xyz: Optional[List[Tuple[float, float, float]]] = None
     oneplane_plane_tolerance: float = 0.02
@@ -153,6 +166,38 @@ class MissionConfig:
                 raise ValueError("spiral_height must be > 0")
             self.spiral_circle_only_enabled = True
 
+        has_cylinder_params = any(
+            value is not None
+            for value in (
+                self.cylinder_center_xy,
+                self.cylinder_radius,
+                self.cylinder_start_z,
+                self.cylinder_height,
+            )
+        )
+        if has_cylinder_params:
+            if self.algorithm != "cylinder":
+                raise ValueError("cylinder_* parameters are only supported when algorithm='cylinder'")
+            if (
+                self.cylinder_center_xy is None
+                or self.cylinder_radius is None
+                or self.cylinder_start_z is None
+                or self.cylinder_height is None
+            ):
+                raise ValueError(
+                    "cylinder_center_xy, cylinder_radius, cylinder_start_z, and cylinder_height must all be provided together"
+                )
+            if len(self.cylinder_center_xy) != 2:
+                raise ValueError("cylinder_center_xy must be a 2-tuple: (cx, cy)")
+            if float(self.cylinder_radius) <= 0:
+                raise ValueError("cylinder_radius must be > 0")
+            if float(self.cylinder_height) <= 0:
+                raise ValueError("cylinder_height must be > 0")
+            self.cylinder_params_enabled = True
+
+        if self.cylinder_mode not in ("horizontal", "vertical"):
+            raise ValueError("cylinder_mode must be 'horizontal' or 'vertical'")
+
         has_oneplane_polygon = self.oneplane_polygon_xyz is not None
         if has_oneplane_polygon:
             if self.algorithm != "oblique_oneplane":
@@ -194,6 +239,7 @@ class MissionConfig:
             if (
                 not self.region_only_enabled
                 and not self.spiral_circle_only_enabled
+                and not self.cylinder_params_enabled
                 and not self.oblique_oneplane_enabled
                 and not input_path
                 and self.algorithm == "boustrophedon"
@@ -210,6 +256,7 @@ class MissionConfig:
         if (
             not self.region_only_enabled
             and not self.spiral_circle_only_enabled
+            and not self.cylinder_params_enabled
             and not self.oblique_oneplane_enabled
             and self.data_source_type == "auto"
         ):
@@ -234,6 +281,8 @@ class MissionConfig:
                 )
 
         if self.region_only_enabled or self.spiral_circle_only_enabled or self.oblique_oneplane_enabled:
+            pass
+        elif self.cylinder_params_enabled:
             pass
         elif self.data_source_type == "pointcloud_file":
             if not self.pointcloud_path and self.tileset_path:
@@ -293,6 +342,7 @@ class MissionConfig:
         valid_algorithms = [
             "boustrophedon",
             "spiral",
+            "cylinder",
             "oblique",
             "oblique_oneplane",
             "viewpoint_optimized",
