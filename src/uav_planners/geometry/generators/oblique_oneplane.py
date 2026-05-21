@@ -58,7 +58,10 @@ class ObliqueOnePlaneGenerator(BaseGeometryGenerator):
         track_spacing = self._boustrophedon._compute_track_spacing(
             distance, camera, float(config.side_overlap)
         )
-        scan_angle = self._boustrophedon._select_scan_direction(polygon_2d)
+        scan_mode = self._boustrophedon._normalize_scan_mode(
+            getattr(config, "scan_direction_mode", "auto")
+        )
+        scan_angle = self._boustrophedon._select_scan_direction(polygon_2d, scan_mode)
         scan_lines = self._boustrophedon._generate_scan_lines(polygon_2d, scan_angle, track_spacing)
 
         heading_offset = float(getattr(config, "oneplane_heading_yaw_offset_deg", 0.0))

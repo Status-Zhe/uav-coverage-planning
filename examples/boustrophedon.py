@@ -34,6 +34,7 @@ config = MissionConfig(
     global_distance_m=GLOBAL_DISTANCE_M,
     min_flight_altitude_m=MIN_FLIGHT_ALTITUDE_M,
     capture_interpolation_factor=1.0,
+    scan_direction_mode = "horizontal", # auto | horizontal | vertical | swap
 )
 
 # In region-only mode transitions are direct-line joins and collision stages are skipped.

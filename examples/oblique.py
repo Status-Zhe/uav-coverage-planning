@@ -36,6 +36,8 @@ config = MissionConfig(
     capture_interpolation_factor=1.0
 )
 
+config.scan_direction_mode = "vertical"  # auto | horizontal | vertical | swap
+
 # 如果需要对规划点云进行切割，配置AABB参数（方式A或方式B），否则保持默认None禁用切割。
 # 方式A（直接传矩阵，推荐矩阵用 numpy）：
 AABB_TRANSFORM = np.array([

@@ -466,6 +466,7 @@ class ObliqueGenerator(BaseGeometryGenerator):
             局部坐标系中的航点列表
         """
         # 计算扫描间距（基于相机FOV和飞行高度）
+        scan_mode = self._resolve_scan_mode(config)
         fov_h_rad = math.radians(config.fov_horizontal_deg if hasattr(config, 'fov_horizontal_deg') else 60)
         track_spacing = 2 * flight_param['distance'] * math.tan(fov_h_rad / 2) * (1 - config.side_overlap)
         track_spacing = max(track_spacing, 0.5)
@@ -473,7 +474,7 @@ class ObliqueGenerator(BaseGeometryGenerator):
         # print(f"    Track spacing: {track_spacing:.2f}m")
         
         # 生成扫描线（在X'Y'平面）
-        scan_lines = self._generate_scan_lines_from_polygon(polygon, track_spacing)
+        scan_lines = self._generate_scan_lines_from_polygon(polygon, track_spacing, scan_mode)
         
         # print(f"    Number of scan lines: {len(scan_lines)}")
         
@@ -517,14 +518,18 @@ class ObliqueGenerator(BaseGeometryGenerator):
             局部坐标系中的航点列表
         """
         # 计算扫描间距（基于相机FOV和飞行距离）
-        fov_v_rad = math.radians(config.fov_vertical_deg if hasattr(config, 'fov_vertical_deg') else 45)
-        track_spacing = 2 * flight_param['distance'] * math.tan(fov_v_rad / 2) * (1 - config.side_overlap)
+        scan_mode = self._resolve_scan_mode(config)
+        if scan_mode == "vertical":
+            fov_rad = math.radians(config.fov_horizontal_deg if hasattr(config, 'fov_horizontal_deg') else 60)
+        else:
+            fov_rad = math.radians(config.fov_vertical_deg if hasattr(config, 'fov_vertical_deg') else 45)
+        track_spacing = 2 * flight_param['distance'] * math.tan(fov_rad / 2) * (1 - config.side_overlap)
         track_spacing = max(track_spacing, 0.5)
         
         # print(f"    Track spacing: {track_spacing:.2f}m")
         
         # 生成扫描线（在X'Z平面）
-        scan_lines = self._generate_scan_lines_from_polygon(polygon, track_spacing)
+        scan_lines = self._generate_scan_lines_from_polygon(polygon, track_spacing, scan_mode)
         
         # print(f"    Number of scan lines: {len(scan_lines)}")
         
@@ -568,14 +573,18 @@ class ObliqueGenerator(BaseGeometryGenerator):
             局部坐标系中的航点列表
         """
         # 计算扫描间距（基于相机FOV和飞行距离）
-        fov_v_rad = math.radians(config.fov_vertical_deg if hasattr(config, 'fov_vertical_deg') else 45)
-        track_spacing = 2 * flight_param['distance'] * math.tan(fov_v_rad / 2) * (1 - config.side_overlap)
+        scan_mode = self._resolve_scan_mode(config)
+        if scan_mode == "vertical":
+            fov_rad = math.radians(config.fov_horizontal_deg if hasattr(config, 'fov_horizontal_deg') else 60)
+        else:
+            fov_rad = math.radians(config.fov_vertical_deg if hasattr(config, 'fov_vertical_deg') else 45)
+        track_spacing = 2 * flight_param['distance'] * math.tan(fov_rad / 2) * (1 - config.side_overlap)
         track_spacing = max(track_spacing, 0.5)
         
         # print(f"    Track spacing: {track_spacing:.2f}m")
         
         # 生成扫描线（在Y'Z平面）
-        scan_lines = self._generate_scan_lines_from_polygon(polygon, track_spacing)
+        scan_lines = self._generate_scan_lines_from_polygon(polygon, track_spacing, scan_mode)
         
         # print(f"    Number of scan lines: {len(scan_lines)}")
         
@@ -602,7 +611,12 @@ class ObliqueGenerator(BaseGeometryGenerator):
         
         return waypoints
 
-    def _generate_scan_lines_from_polygon(self, polygon: Polygon, spacing: float) -> List[LineString]:
+    def _generate_scan_lines_from_polygon(
+        self,
+        polygon: Polygon,
+        spacing: float,
+        direction: str = "horizontal",
+    ) -> List[LineString]:
         """从多边形生成水平扫描线（在2D平面中）。
         
         算法：
@@ -624,48 +638,92 @@ class ObliqueGenerator(BaseGeometryGenerator):
         
         min_x, min_y, max_x, max_y = polygon.bounds
         
-        # If spacing is larger than polygon height, adjust to ensure at least 5 scan lines
-        height = max_y - min_y
-        min_scan_lines = 5
-        threshold = height / (min_scan_lines - 1)
-        if spacing > threshold:
-            spacing = threshold
-        
-        scan_lines = []
-        y = min_y
-        
-        line_count = 0
-        while y <= max_y + 0.001:  # Small epsilon for float comparison
-            # 创建水平扫描线（稍超出边界以确保相交）
-            line = LineString([(min_x - spacing, y), (max_x + spacing, y)])
-            
-            # 与多边形求交
-            intersection = line.intersection(polygon)
-            
-            if not intersection.is_empty:
-                if intersection.geom_type == 'LineString':
-                    scan_lines.append(intersection)
-                    line_count += 1
-                elif intersection.geom_type == 'MultiLineString':
-                    for geom in intersection.geoms:
-                        scan_lines.append(geom)
+        direction = "vertical" if str(direction).strip().lower() == "vertical" else "horizontal"
+
+        if direction == "vertical":
+            width = max_x - min_x
+            min_scan_lines = 5
+            threshold = width / (min_scan_lines - 1)
+            if spacing > threshold:
+                spacing = threshold
+
+            scan_lines = []
+            x = min_x
+            line_count = 0
+            while x <= max_x + 0.001:  # Small epsilon for float comparison
+                line = LineString([(x, min_y - spacing), (x, max_y + spacing)])
+                intersection = line.intersection(polygon)
+
+                if not intersection.is_empty:
+                    if intersection.geom_type == 'LineString':
+                        scan_lines.append(intersection)
                         line_count += 1
-                # Point and other types are skipped (tangent intersections)
-            
-            y += spacing
-        
-        # Fallback: ensure at least one scan line through center
-        if line_count == 0 and not polygon.is_empty:
-            center_y = (min_y + max_y) / 2
-            line = LineString([(min_x - 1, center_y), (max_x + 1, center_y)])
-            intersection = line.intersection(polygon)
-            if not intersection.is_empty:
-                if intersection.geom_type == 'LineString':
-                    scan_lines.append(intersection)
-                elif intersection.geom_type == 'MultiLineString':
-                    scan_lines.extend(list(intersection.geoms))
+                    elif intersection.geom_type == 'MultiLineString':
+                        for geom in intersection.geoms:
+                            scan_lines.append(geom)
+                            line_count += 1
+
+                x += spacing
+
+            if line_count == 0 and not polygon.is_empty:
+                center_x = (min_x + max_x) / 2
+                line = LineString([(center_x, min_y - 1), (center_x, max_y + 1)])
+                intersection = line.intersection(polygon)
+                if not intersection.is_empty:
+                    if intersection.geom_type == 'LineString':
+                        scan_lines.append(intersection)
+                    elif intersection.geom_type == 'MultiLineString':
+                        scan_lines.extend(list(intersection.geoms))
+        else:
+            # If spacing is larger than polygon height, adjust to ensure at least 5 scan lines
+            height = max_y - min_y
+            min_scan_lines = 5
+            threshold = height / (min_scan_lines - 1)
+            if spacing > threshold:
+                spacing = threshold
+
+            scan_lines = []
+            y = min_y
+
+            line_count = 0
+            while y <= max_y + 0.001:  # Small epsilon for float comparison
+                # 创建水平扫描线（稍超出边界以确保相交）
+                line = LineString([(min_x - spacing, y), (max_x + spacing, y)])
+
+                # 与多边形求交
+                intersection = line.intersection(polygon)
+
+                if not intersection.is_empty:
+                    if intersection.geom_type == 'LineString':
+                        scan_lines.append(intersection)
+                        line_count += 1
+                    elif intersection.geom_type == 'MultiLineString':
+                        for geom in intersection.geoms:
+                            scan_lines.append(geom)
+                            line_count += 1
+                    # Point and other types are skipped (tangent intersections)
+
+                y += spacing
+
+            # Fallback: ensure at least one scan line through center
+            if line_count == 0 and not polygon.is_empty:
+                center_y = (min_y + max_y) / 2
+                line = LineString([(min_x - 1, center_y), (max_x + 1, center_y)])
+                intersection = line.intersection(polygon)
+                if not intersection.is_empty:
+                    if intersection.geom_type == 'LineString':
+                        scan_lines.append(intersection)
+                    elif intersection.geom_type == 'MultiLineString':
+                        scan_lines.extend(list(intersection.geoms))
         
         return scan_lines
+
+    @staticmethod
+    def _resolve_scan_mode(config: GeneratorConfig) -> str:
+        mode = str(getattr(config, "scan_direction_mode", "auto")).strip().lower()
+        if mode in {"vertical", "swap"}:
+            return "vertical"
+        return "horizontal"
              
     def _extract_footprint_2d(self, points_2d: np.ndarray) -> Polygon:
         """Extract 2D footprint polygon from projected points.

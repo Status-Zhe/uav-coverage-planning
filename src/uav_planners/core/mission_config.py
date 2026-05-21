@@ -34,6 +34,7 @@ class MissionConfig:
     coverage_threshold: float = 0.95
     side_overlap: float = 0.7
     front_overlap: float = 0.8
+    scan_direction_mode: str = "auto"
     gsd: Optional[float] = None
     global_distance_m: Optional[float] = None
     min_flight_altitude_m: Optional[float] = None
@@ -136,6 +137,11 @@ class MissionConfig:
         """Validate configuration."""
         if self.data_source_type not in ["auto", "pointcloud_file", "tileset"]:
             raise ValueError("data_source_type must be 'auto', 'pointcloud_file' or 'tileset'")
+
+        scan_mode = str(getattr(self, "scan_direction_mode", "auto")).strip().lower()
+        if scan_mode not in {"auto", "horizontal", "vertical", "swap"}:
+            raise ValueError("scan_direction_mode must be 'auto', 'horizontal', 'vertical', or 'swap'")
+        self.scan_direction_mode = scan_mode
 
         has_spiral_circle_params = any(
             value is not None

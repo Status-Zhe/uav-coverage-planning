@@ -62,6 +62,9 @@ class CoverageConfig:
     
     front_overlap: float = 0.8
     """Front overlap ratio (0-1), default 80%."""
+
+    scan_direction_mode: str = "auto"
+    """Scan direction mode: auto | horizontal | vertical | swap."""
     
     coverage_threshold: float = 0.95
     """Required coverage ratio for viewpoint planning (0-1)."""
@@ -337,7 +340,7 @@ class GeneratorConfig:
     # These are auto-mapped to sub-configs via properties
     _legacy_attrs: List[str] = field(default_factory=lambda: [
         'altitude', 'speed_ms', 'safety_distance', 'min_flight_altitude_m',
-        'side_overlap', 'front_overlap', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude',
+        'side_overlap', 'front_overlap', 'scan_direction_mode', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude',
         'viewpoint_layer_height_step_m', 'viewpoint_layer_order', 'viewpoint_boundary_expand_m',
         'viewpoint_ring_arc_step_m', 'viewpoint_min_points_per_layer', 'viewpoint_layer_area_jump_ratio',
         'viewpoint_layer_insert_max_global', 'viewpoint_min_altitude', 'viewpoint_beyond_altitude',
@@ -448,7 +451,7 @@ class GeneratorConfig:
     def _build_legacy_map(self) -> dict:
         """Build mapping of legacy attrs to their sub-configs."""
         flight_attrs = {'altitude', 'speed_ms', 'safety_distance', 'min_flight_altitude_m'}
-        coverage_attrs = {'side_overlap', 'front_overlap', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude'}
+        coverage_attrs = {'side_overlap', 'front_overlap', 'scan_direction_mode', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude'}
         viewpoint_attrs = {
             'viewpoint_layer_height_step_m', 'viewpoint_layer_order', 'viewpoint_boundary_expand_m',
             'viewpoint_ring_arc_step_m', 'viewpoint_min_points_per_layer', 'viewpoint_layer_area_jump_ratio',
@@ -496,7 +499,7 @@ class GeneratorConfig:
         
         # Map legacy attributes to sub-configs
         flight_attrs = {'altitude', 'speed_ms', 'safety_distance', 'min_flight_altitude_m'}
-        coverage_attrs = {'side_overlap', 'front_overlap', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude'}
+        coverage_attrs = {'side_overlap', 'front_overlap', 'scan_direction_mode', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude'}
         viewpoint_attrs = {
             'viewpoint_layer_height_step_m', 'viewpoint_layer_order', 'viewpoint_boundary_expand_m',
             'viewpoint_ring_arc_step_m', 'viewpoint_min_points_per_layer', 'viewpoint_layer_area_jump_ratio',
@@ -552,7 +555,7 @@ class GeneratorConfig:
             return
         
         flight_attrs = {'altitude', 'speed_ms', 'safety_distance', 'min_flight_altitude_m'}
-        coverage_attrs = {'side_overlap', 'front_overlap', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude'}
+        coverage_attrs = {'side_overlap', 'front_overlap', 'scan_direction_mode', 'coverage_threshold', 'oblique_dst_srf', 'oblique_min_altitude'}
         viewpoint_attrs = {
             'viewpoint_layer_height_step_m', 'viewpoint_layer_order', 'viewpoint_boundary_expand_m',
             'viewpoint_ring_arc_step_m', 'viewpoint_min_points_per_layer', 'viewpoint_layer_area_jump_ratio',

@@ -80,7 +80,8 @@ class BoustrophedonGenerator(BaseGeometryGenerator):
             track_spacing = self._compute_track_spacing(
                 adjusted_altitude, camera, config.side_overlap
             )
-            scan_angle = self._select_scan_direction(footprint)
+            scan_mode = self._normalize_scan_mode(getattr(config, "scan_direction_mode", "auto"))
+            scan_angle = self._select_scan_direction(footprint, scan_mode)
             scan_lines = self._generate_scan_lines(footprint, scan_angle, track_spacing)
             return self._lines_to_waypoints(scan_lines, adjusted_altitude, config.speed_ms)
 
@@ -122,7 +123,8 @@ class BoustrophedonGenerator(BaseGeometryGenerator):
             adjusted_altitude, camera, config.side_overlap
         )  
         # Step 3: Select scan direction (longest edge of footprint)
-        scan_angle = self._select_scan_direction(footprint)
+        scan_mode = self._normalize_scan_mode(getattr(config, "scan_direction_mode", "auto"))
+        scan_angle = self._select_scan_direction(footprint, scan_mode)
         
         # Step 4: Generate scan lines
         scan_lines = self._generate_scan_lines(
@@ -216,7 +218,16 @@ class BoustrophedonGenerator(BaseGeometryGenerator):
         
         return final_spacing
     
-    def _select_scan_direction(self, footprint: Polygon) -> float:
+    @staticmethod
+    def _normalize_scan_mode(value: object) -> str:
+        if value is None:
+            return "auto"
+        mode = str(value).strip().lower()
+        if mode in {"auto", "horizontal", "vertical", "swap"}:
+            return mode
+        return "auto"
+
+    def _select_scan_direction(self, footprint: Polygon, scan_mode: str = "auto") -> float:
         """Select optimal scan direction.
         
         Chooses direction perpendicular to the longest edge
@@ -245,6 +256,13 @@ class BoustrophedonGenerator(BaseGeometryGenerator):
                 max_length = length
                 best_angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
         
+        scan_mode = self._normalize_scan_mode(scan_mode)
+        if scan_mode == "horizontal":
+            return 0.0
+        if scan_mode == "vertical":
+            return 90.0
+        if scan_mode == "swap":
+            return best_angle % 180
         # Scan direction is perpendicular to longest edge
         return (best_angle + 90) % 180
     

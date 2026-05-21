@@ -68,6 +68,7 @@ class CoveragePipeline:
             speed_ms=self.config.speed_ms,
             side_overlap=self.config.side_overlap,
             front_overlap=self.config.front_overlap,
+            scan_direction_mode=getattr(self.config, "scan_direction_mode", "auto"),
             safety_distance=self.config.safety_distance,
             coverage_threshold=self.config.coverage_threshold,
             global_distance_m=self.config.global_distance_m,

@@ -35,6 +35,7 @@ config = MissionConfig(
     oneplane_plane_tolerance=0.02,
     oneplane_face_normal_sign=-1.0,
     oneplane_heading_yaw_offset_deg=0.0,
+    scan_direction_mode = "horizontal", # scan_direction_mode = "vertical"  # auto | horizontal | vertical | swap
 )
 
 print(f"[{time.time()-start:.1f}s] Creating planner...")
