@@ -103,6 +103,17 @@ python -m http.server 8080
 - 如果需要把 Stage6（间断桥接）生成的补间点视作拍照点与基于点云法线的朝向，可以使用代码中已集成的 Stage6 行为（默认已将修复点标记为拍照点并尝试使用点云法线设置飞机朝向）。
 - 点云预处理（`pointcloud_preprocess_enable=True`）在噪声点云上通常能提升法线稳定性与规划质量。
 
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=Status-Zhe%2Fuav-coverage-planning&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## 可视化示例图片
 仓库内 `png/` 目录包含若干示例截图，可用于快速查看不同算法的输出：
 
@@ -118,17 +129,9 @@ python -m http.server 8080
 ![oblique](png/oblique.png)
 ![oblique2](png/oblique2.png)
 
-## Star History
-
-<a href="https://www.star-history.com/?repos=Status-Zhe%2Fuav-coverage-planning&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&legend=top-left" />
- </picture>
-</a>
-
 #### Viewpoint
 ![boxwarp](png/boxwarp.png)
 ![boxwarp2](png/boxwarp2.png)
+
+
 
