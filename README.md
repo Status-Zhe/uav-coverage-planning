@@ -118,6 +118,16 @@ python -m http.server 8080
 ![oblique](png/oblique.png)
 ![oblique2](png/oblique2.png)
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=Status-Zhe%2Fuav-coverage-planning&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Status-Zhe/uav-coverage-planning&type=date&legend=top-left" />
+ </picture>
+</a>
+
 #### Viewpoint
 ![boxwarp](png/boxwarp.png)
 ![boxwarp2](png/boxwarp2.png)
